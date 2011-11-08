@@ -121,6 +121,8 @@ public class AirGuitar extends Component
     private boolean printID = true;
     private boolean printState = true;
     
+    private HashMap<Integer, >
+    
     
     private BufferedImage bimg;
     int width, height;
@@ -394,5 +396,9 @@ public class AirGuitar extends Component
 		{
 			e.printStackTrace();
 		}
+    }
+    
+    private enum UserStrumHandState {
+    	UP,DOWN
     }
 }
