@@ -324,6 +324,14 @@ public class AirGuitar extends Component
 
     }
     
+    public void drawGuitar(Graphics g, int user) throws StatusException {
+    	getJoints(user);
+    	HashMap<SkeletonJoint, SkeletonJointPosition> dict = joints.get(new Integer(user));
+    	
+    	drawLine(g, dict, SkeletonJoint.RIGHT_HIP, SkeletonJoint.LEFT_HAND);
+    }
+    
+    
     public void paint(Graphics g)
     {
     	if (drawPixels)
@@ -350,7 +358,10 @@ public class AirGuitar extends Component
 				if (drawSkeleton && skeletonCap.isSkeletonTracking(users[i]))
 				{
 					drawSkeleton(g, users[i]);
+					drawGuitar(g, users[i]);
 				}
+				
+				
 				
 				if (printID)
 				{
