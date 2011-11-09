@@ -28,6 +28,11 @@ import java.util.HashMap;
 import java.awt.*;
 import java.awt.color.ColorSpace;
 import java.awt.image.*;
+import java.lang.Math;
+import java.io.File;
+import java.io.IOException;
+
+import javax.sound.sampled.*;
 
 public class AirGuitar extends Component
 {
@@ -114,14 +119,17 @@ public class AirGuitar extends Component
     private float histogram[];
     String calibPose = null;
     HashMap<Integer, HashMap<SkeletonJoint, SkeletonJointPosition>> joints;
-
+    
+    //Sound stuff
+    private HashMap<Note, Clip> clips;
+    
     private boolean drawBackground = true;
     private boolean drawPixels = true;
     private boolean drawSkeleton = true;
     private boolean printID = true;
     private boolean printState = true;
     
-    private HashMap<Integer, >
+    private HashMap<Integer, UserStrumHandState> strumState;
     
     
     private BufferedImage bimg;
@@ -155,6 +163,32 @@ public class AirGuitar extends Component
             
             calibPose = skeletonCap.getSkeletonCalibrationPose();
             joints = new HashMap<Integer, HashMap<SkeletonJoint,SkeletonJointPosition>>();
+            
+            strumState = new HashMap<Integer, UserStrumHandState>();
+            
+            clips = new HashMap<Note, Clip>();
+            
+            for(Note n : Note.values()) {
+            	File soundFile = new File("sounds/" + n +".wav");
+            	try {
+					AudioInputStream audioIn = AudioSystem.getAudioInputStream(soundFile);
+					Clip c = AudioSystem.getClip();
+					c.open(audioIn);
+					clips.put(n, c);
+				} catch (UnsupportedAudioFileException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (LineUnavailableException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+            	
+            	
+            }
+            
             
             skeletonCap.setSkeletonProfile(SkeletonProfile.ALL);
 			
@@ -326,6 +360,92 @@ public class AirGuitar extends Component
 
     }
     
+    private void strum(int user, Graphics g) {
+    	UserStrumHandState lastState = strumState.get(user);
+    	UserStrumHandState newState;
+    	
+    	try {
+			getJoints(user);
+		} catch (StatusException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    	
+    	HashMap<SkeletonJoint, SkeletonJointPosition> dict = joints.get(new Integer(user));
+    	
+    	
+    	
+    	Point3D leftHandPosition = dict.get(SkeletonJoint.LEFT_HAND).getPosition();
+    	Point3D rightHipPosition = dict.get(SkeletonJoint.RIGHT_HIP).getPosition();
+    	Point3D rightHandPosition = dict.get(SkeletonJoint.RIGHT_HAND).getPosition();
+    	
+    	
+    	float guitarSlope = (leftHandPosition.getY() - rightHipPosition.getY()) /
+    			(leftHandPosition.getX() - rightHipPosition.getX());
+    	
+    	float guitarHandIntercept = leftHandPosition.getY() + (guitarSlope * (rightHandPosition.getX() 
+    								- leftHandPosition.getX()));
+    	
+    	g.drawOval((int) rightHandPosition.getX(), (int) guitarHandIntercept, 20,20);
+    	
+    	double guitarLength = Math.sqrt((rightHipPosition.getY() - leftHandPosition.getY()) * (rightHipPosition.getY() - leftHandPosition.getY()) +
+    			(rightHipPosition.getX() - leftHandPosition.getX()) * (rightHipPosition.getX() - leftHandPosition.getX()));
+    	
+    	//System.out.println("Guitar length: " + guitarLength);
+    	
+    	
+    	if (rightHandPosition.getY() > guitarHandIntercept) {
+    		 newState = UserStrumHandState.DOWN;
+    	}
+    	else {
+    		newState = UserStrumHandState.UP;
+    	}
+    	
+    	
+    	
+    	if (newState != lastState) {
+    		playTunedSound(guitarLength);
+    	}
+    	
+    	strumState.put(user,newState);
+    	
+    }
+    
+    private void playTunedSound(double guitarLength) {
+    	Clip c;
+    	
+    	switch ((int) ((guitarLength - 150) / 50)) {
+    	case 6:
+    		c = clips.get(Note.A);
+    		break;
+    	case 5:
+    		c = clips.get(Note.B);
+    		break;
+    	case 4:
+    		c = clips.get(Note.C);
+    		break;
+    	case 3:
+    		c = clips.get(Note.D);
+    		break;
+    	case 2:
+    		c = clips.get(Note.E);
+    		break;
+    	case 1:
+    		c = clips.get(Note.F);
+    		break;
+    	case 0:
+    		c = clips.get(Note.G);
+    		break;
+    	default:
+    		return;
+    	}
+    	
+    	c.setMicrosecondPosition(0);
+    	c.start();
+    	
+    	
+    }
+    
     public void drawGuitar(Graphics g, int user) throws StatusException {
     	getJoints(user);
     	HashMap<SkeletonJoint, SkeletonJointPosition> dict = joints.get(new Integer(user));
@@ -361,6 +481,7 @@ public class AirGuitar extends Component
 				{
 					drawSkeleton(g, users[i]);
 					drawGuitar(g, users[i]);
+					strum(users[i], g);
 				}
 				
 				
@@ -400,5 +521,9 @@ public class AirGuitar extends Component
     
     private enum UserStrumHandState {
     	UP,DOWN
+    }
+    
+    private enum Note {
+    	A,B,C,D,E,F,G
     }
 }
